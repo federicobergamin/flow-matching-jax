@@ -1,5 +1,6 @@
 """
 We sample both unconditionally and using reconstruction guidance on the MNIST dataset.
+Here we use classifier 
 """
 
 
@@ -52,7 +53,7 @@ def main(args):
     model_apply = lambda p, x, t: model.apply({"params": p}, x, t)
 
     ## now I can load the parameters
-    params_dict = pkl.load(open(saving_dir + "cfm_mnist_weights_cfm.pickle", "rb"))
+    params_dict = pkl.load(open(saving_dir + "cfm_mnist_weights_1000epochs.pickle", "rb"))
     print(params_dict.keys())
 
     params_vec, unflatten = flatten_util.ravel_pytree(params_dict)
@@ -66,7 +67,7 @@ def main(args):
     x0_samples = np.reshape(x0_samples, (n_samples, 28, 28, 1))
     t = jnp.zeros((n_samples,))
 
-    N = 500
+    N = 100
     xt = x0_samples
     for i in tqdm(range(N), desc="Sampling"):
         pred = model_apply(params_dict["params"], xt, t)
@@ -79,6 +80,9 @@ def main(args):
 
     print(xt_numpy.shape)
 
+    # maybe I should clip the values to be in the 0-1 interval
+    # xt_numpy = np.clip(xt_numpy, 0, 1)
+
     # I can plot the samples in a grid
     fig, axs = plt.subplots(8, 8, figsize=(8, 8))
     for i in range(8):
@@ -86,17 +90,19 @@ def main(args):
             axs[i, j].imshow(xt_numpy[i * 8 + j, :, :, 0], cmap="gray")
             axs[i, j].axis("off")
     plt.title("Unconditional samples from the model")
-    # plt.savefig(img_saving_dir + "cfm_mnist_samples.png")
+    plt.savefig(img_saving_dir + "cfm_mnist_samples_model_1000epochs.png")
     plt.show()
 
 
     ##################################################
     ###
-    ###        Reconstruction guidance
+    ###        Classifier guidance
     ###
     ##################################################
-    print("Reconstruction guidance")
+    print("Classifier guidance")
     guidance_strength = 1
+    ## NOTE: THE CLASSIFIER TO BE EFFECTIVE HAS TO BE TRAINED WITH THE SAME
+    ## "NOISE PROCESS" AS THE FLOW MATCHING MODEL
     # now I can sample using reconstruction guidance
     # I need to define and load the best classifier model
     num_classes = 10
@@ -127,7 +133,7 @@ def main(args):
     ## so we can add a small epsilon
     t = jnp.zeros((n_samples,)) + 1e-3
 
-    N = 500
+    N = 200
     xt = x0_samples
     for i in tqdm(range(N), desc="Sampling"):
         vecot_field_pred = model_apply(params_dict["params"], xt, t)
@@ -135,9 +141,11 @@ def main(args):
         # I have to compute the gradient of the loss wrt the input
         (loss, logits), grads = classifier_loss_grad_fn(classifier_model_weights["params"], xt, conditioning_label)
         # printing just to check what the classifier is doing
-        print(jnp.argmax(logits, axis=1))
+        print(f"Which digits is the classifier predicting: {jnp.argmax(logits, axis=1)}")
 
-        # I think this is the correct way of applying reconstruction guidance
+        # I think this is one way to apply reconstruction guidance
+        # is this correct? most likely not
+        # does it work? sometimes it does, sometimes it doesn't
         # Euler step
         xt = xt + vecot_field_pred * (1 / N)
         xt = xt - guidance_strength*grads
@@ -147,14 +155,14 @@ def main(args):
     # torch.save(xt_numpy, saving_dir + "cfm_mnist_samples_reconstruction_guidance.pt")
 
     print(xt_numpy.shape)
-
+    # xt_numpy = np.clip(xt_numpy, 0, 1)
     # I can plot the samples in a grid
     fig, axs = plt.subplots(int(jnp.sqrt(n_samples)), int(jnp.sqrt(n_samples)), figsize=(8, 8))
     for i in range(int(jnp.sqrt(n_samples))):
         for j in range(int(jnp.sqrt(n_samples))):
             axs[i, j].imshow(xt_numpy[i * int(jnp.sqrt(n_samples)) + j, :, :, 0], cmap="gray")
             axs[i, j].axis("off")
-    plt.savefig(img_saving_dir + "cfm_mnist_samples_reconstruction_guidance.png")
+    plt.savefig(img_saving_dir + "cfm_mnist_samples_reconstruction_guidance_model_1000epochs.png")
     plt.show()
 
 
@@ -165,7 +173,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Stochastic interpolants Gaussian-MNIST")
     parser.add_argument("--seed", "-s", type=int, default=1, help="seed")
-    parser.add_argument("--n_samples", "-ns", type=int, default=64, help="Number of samples to generate")
+    parser.add_argument("--n_samples", "-ns", type=int, default=16, help="Number of samples to generate")
 
     args = parser.parse_args()
     main(args)
