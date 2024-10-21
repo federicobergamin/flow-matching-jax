@@ -1,6 +1,6 @@
 ## Conditional Flow Matching in JAX
 
-Minimal and simple implementation of Conditional Flow Matching in JAX. The purpose was to learn about CFM and at the same time play with JAX. Therefore, if there are better way to implement stuff feel free to suggest.
+Minimal and simple implementation of Conditional Flow Matching in JAX. The purpose was to learn about CFM and at the same time play with JAX. Therefore, if there are better way to implement stuff feel free to suggest. It still working in progress especially the conditional sampling for inverse problem part.
 
 To make it work you first have to run the following command `pip install -e .`
 
