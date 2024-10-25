@@ -62,7 +62,7 @@ class SinusoidalPosEmb(nn.Module):
         """
         assert len(time.shape) == 1
         half_dim = self.dim // 2
-        emb = np.log(10000) / (half_dim - 1)
+        emb = jnp.log(10000) / (half_dim - 1)
         emb = jnp.exp(jnp.arange(half_dim, dtype=self.dtype) * -emb)
         emb = time.astype(self.dtype)[:, None] * emb[None, :]
         emb = jnp.concatenate([jnp.sin(emb), jnp.cos(emb)], axis=1)
@@ -194,7 +194,7 @@ class ResnetBlock(nn.Module):
         if self.standardize_conv:
             h = WeightStandardizedConv(features=self.dim, kernel_size=(3, 3), padding=1, name="conv_1")(h)
         else:
-            h = nn.Conv(features=self.dim, kernel_size=(3, 3), padding=1, dtype=self.dtype, name="conv_1")(x)
+            h = nn.Conv(features=self.dim, kernel_size=(3, 3), padding=1, dtype=self.dtype, name="conv_1")(h)
 
         h = nn.swish(nn.GroupNorm(num_groups=self.groups, dtype=self.dtype, name="norm_1")(h))
 
