@@ -42,7 +42,7 @@ def cross_entropy_loss(apply_fun):
 
         # now i can compute the loss
         loss =  optax.softmax_cross_entropy_with_integer_labels(logits=logits, labels=y)
-        return loss.mean(), logits
+        return loss.sum(), logits
 
     return loss
 

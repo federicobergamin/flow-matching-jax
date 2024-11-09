@@ -18,6 +18,8 @@ from jax import random
 from matplotlib import pyplot as plt
 import argparse
 from cfm_jax.models.unet.unet import Unet
+from cfm_jax.models.unet_v2.unet import DDPM
+from configs.mnist_unet import get_default_configs
 from cfm_jax.models.models import ConvNet
 from cfm_jax.datautils import sample_gaussian, sample_8gaussians
 from cfm_jax.utils import (
@@ -43,9 +45,16 @@ def main(args):
 
     saving_dir = "trained_models/"
     img_saving_dir = "plots/"
+    yang_song_model = True
 
     # define the model
-    model = Unet(embedding_dim=32, output_channels=1, dim_mults=(1, 2, 4))
+    if yang_song_model:
+        config = get_default_configs()
+        print(config)
+        model = DDPM(config)
+    else:
+        model = Unet(embedding_dim=64, output_channels=1, resnet_block_groups=8, dim_mults=(1, 2))
+
 
     data_rng, time_rng, init_rng, prng_key = split_key(prng_key, num=4)
     input_shape = (1, 28, 28, 1)
@@ -59,7 +68,10 @@ def main(args):
     model_apply = lambda p, x, t: model.apply({"params": p}, x, t)
 
     ## now I can load the parameters
-    params_dict = pkl.load(open(saving_dir + f"cfm_mnist_weights_{args.method}_best_validation.pickle", "rb"))
+    if yang_song_model:
+        params_dict = pkl.load(open(saving_dir + f"cfm_mnist_weights_{args.method}_best_validation_trial_yangsong_True.pickle", "rb"))
+    else:
+        params_dict = pkl.load(open(saving_dir + f"cfm_mnist_weights_{args.method}_best_validation_trial.pickle", "rb"))
     print(params_dict.keys())
 
     params_vec, unflatten = flatten_util.ravel_pytree(params_dict)
@@ -82,7 +94,7 @@ def main(args):
 
     ## save results
     xt_numpy = np.array(xt)
-    torch.save(xt_numpy, saving_dir + "cfm_mnist_samples.pt")
+    # torch.save(xt_numpy, saving_dir + "cfm_mnist_samples.pt")
 
     print(xt_numpy.shape)
 
@@ -106,7 +118,7 @@ def main(args):
     ###
     ##################################################
     print("Classifier guidance")
-    guidance_strength = 1
+    guidance_strength = 1.5
     ## NOTE: THE CLASSIFIER TO BE EFFECTIVE HAS TO BE TRAINED WITH THE SAME
     ## "NOISE PROCESS" AS THE FLOW MATCHING MODEL
     # now I can sample using reconstruction guidance
@@ -119,7 +131,7 @@ def main(args):
         classifier_model_weights = pkl.load(f)
 
     classifier_model_apply = lambda p, x: classifier_model.apply({"params": p}, x)
-    class_conditioning = 5
+    class_conditioning = 1
 
     # I need have to get the gradient of the loss wrt the input
     # loss function definition
@@ -149,15 +161,13 @@ def main(args):
         # printing just to check what the classifier is doing
         print(f"Which digits is the classifier predicting: {jnp.argmax(logits, axis=1)}")
 
-        # Euler step
-        # xt = xt + vecot_field_pred * (1 / N)
-
         # here I have to compute the guidance
         weighting_factor=((1-t[0])/t[0])
         # print(f"Weighting factor shape: {weighting_factor.shape}")
         weighting_factor = weighting_factor.reshape(-1, *([1] * (len(grads.shape) - 1)))
         # I have to pad it like the grad I guess
         # print(f"Weighting factor shape after padding: {weighting_factor.shape}")
+        # FOR FEDBE FOR THE FUTURE THAT WON'T UNDERSTAND WHY THERE IS A MINUS
         # since we are computing the gradient of the loss, we have to put the minus 
         # to get the log-likelihood. You are stupid federico
         guided_vecot_field_pred = vecot_field_pred - (guidance_strength* weighting_factor*grads)
@@ -173,13 +183,14 @@ def main(args):
     fig, axs = plt.subplots(int(jnp.sqrt(n_samples)), int(jnp.sqrt(n_samples)), figsize=(8, 8))
     for i in range(int(jnp.sqrt(n_samples))):
         for j in range(int(jnp.sqrt(n_samples))):
+            print('---')
+            print(f"max value: {xt_numpy[i * int(jnp.sqrt(n_samples)) + j, :, :, 0].reshape(-1).max()}")
+            print(f"min value: {xt_numpy[i * int(jnp.sqrt(n_samples)) + j, :, :, 0].reshape(-1).min()}")
             axs[i, j].imshow(xt_numpy[i * int(jnp.sqrt(n_samples)) + j, :, :, 0].clip(0, 1), cmap="gray")
             axs[i, j].axis("off")
     plt.savefig(img_saving_dir + "cfm_mnist_samples_reconstruction_guidance_model.png")
     plt.show()
 
-
-    
 
     
 
