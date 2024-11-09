@@ -45,8 +45,14 @@ def main(args):
     saving_dir = "trained_models/"
 
     # I can create the datasets
+    # train_dataset = MNIST(root=dataset_path, transform=image_to_numpy_zero_one_interval, train=True, download=True)
+    # train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=numpy_collate)
     train_dataset = MNIST(root=dataset_path, transform=image_to_numpy_zero_one_interval, train=True, download=True)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=numpy_collate)
+    train_set, val_set = torch.utils.data.random_split(train_dataset, [50000, 10000],
+                                                   generator=torch.Generator().manual_seed(42))
+    
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=numpy_collate)
+    valid_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, collate_fn=numpy_collate)
 
     # for now we don't need the test since we are not computing the test-log-likelihood
     # test_dataset = MNIST(root=dataset_path, transform=image_to_numpy_zero_one_interval, train=False, download=True)
@@ -70,7 +76,7 @@ def main(args):
     n_params = len(params_vec)
     print(f"Number of parameters: {n_params}")
 
-    lr = 0.001
+    lr = 1e-4
     optim = optax.adam(lr)
     opt_state = optim.init(params_dict["params"])
 
@@ -85,10 +91,11 @@ def main(args):
     flow_matching_model = ConditionalFlowMatchingModel(sigma=0.0, method=args.method)
 
     # training loop
-    for ep in tqdm(range(epochs), desc="Training"):
+    best_valid_loss = np.inf
+    for ep in range(epochs):#tqdm(range(epochs), desc="Training"):
         ep_loss = 0
         ep_num_elem = 0
-        for batch_p1_data, batch_p1_labels in tqdm(train_loader, desc="Batch"):
+        for batch_p1_data, batch_p1_labels in tqdm(train_loader, desc=f"Epoch {ep} Training Batch"):
 
             key_t, key_p0, key_eps, prng_key = split_key(prng_key, num=4)
             t = jax.random.uniform(key_t, shape=(batch_p1_data.shape[0],))
@@ -112,14 +119,33 @@ def main(args):
 
             ep_loss += loss * batch_p0.shape[0]
             ep_num_elem += batch_p0.shape[0]
+        
+        # at the end of the epoch we can compute the validation loss
+        valid_loss = 0
+        valid_num_elem = 0
+        for batch_p1_data_valid, _ in tqdm(valid_loader, desc=f"Epoch {ep} Validation"):
+            key_t, key_p0, key_eps, prng_key = split_key(prng_key, num=4)
+            t_valid = jax.random.uniform(key_t, shape=(batch_p1_data_valid.shape[0],))
+            p0_valid = sample_gaussian(batch_p1_data_valid.shape[0], dimension=28 * 28, key=key_p0)
+            p0_valid = p0_valid.reshape(batch_p1_data_valid.shape[0], 28, 28, 1)
 
-        if ep % 50 == 0:
-            print(f"finished {ep} epoch, avg loss trainin: {ep_loss/ep_num_elem}")
+            assert p0_valid.shape == batch_p1_data_valid.shape, "Shapes of the two batches are not the same in validation"
 
-    ## at the end we can save the model parameters
-    print("Saving model parameters")
-    with open(saving_dir + f"cfm_mnist_weights_{args.method}_trial.pickle", "wb") as handle:
-        pkl.dump(params_dict, handle, protocol=pkl.HIGHEST_PROTOCOL)
+            xt_valid = flow_matching_model.sample_xt(p0_valid, batch_p1_data_valid, t_valid, key_epsilon=key_eps)
+            ut_valid = flow_matching_model.compute_conditional_flow(p0_valid, batch_p1_data_valid, t_valid, xt_valid)
+
+            loss = conditional_flow_matching_loss(params_dict["params"], xt_valid, t_valid, ut_valid)
+            valid_loss += loss * batch_p1_data_valid.shape[0]
+            valid_num_elem += batch_p1_data_valid.shape[0]
+
+        # if ep % 50 == 0:
+        print(f"finished {ep} epoch, avg loss training: {ep_loss/ep_num_elem}, avg loss validation: {valid_loss/valid_num_elem}")
+
+        if valid_loss < best_valid_loss:
+            best_valid_loss = valid_loss
+            print("New best validation loss, saving model")
+            with open(saving_dir + f"cfm_mnist_weights_{args.method}_best_validation.pickle", "wb") as handle:
+                pkl.dump(params_dict, handle, protocol=pkl.HIGHEST_PROTOCOL)
 
     print("Sampling from the model")
     key_samples, prng_key = split_key(prng_key, num=2)
@@ -143,7 +169,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", "-s", type=int, default=1, help="seed")
     parser.add_argument("--epochs", "-ep", type=int, default=500, help="epochs")
     parser.add_argument("--batch_size", "-bs", type=int, default=256, help="Batch size")
-    parser.add_argument("--method", "-mt", type=str, default="CFM", help="Type of Flow matching we use")
+    parser.add_argument("--method", "-mt", type=str, default="CFMv2", help="Type of Flow matching we use")
     parser.add_argument("--dataset_path", "-data_path", type=str, default="data/", help="Folder for the datasets")
 
     args = parser.parse_args()

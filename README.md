@@ -16,8 +16,7 @@ Highly inspired by the following (and way better) repository:
 
 
 TODO (Priority list):
-- vmap sampling
-- reconstruction guidance that works
+- inverse problems that works
 - likelihood computation
 
 POSSIBLE EXTENSIONS:

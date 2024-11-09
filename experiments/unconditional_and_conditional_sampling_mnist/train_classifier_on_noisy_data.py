@@ -157,8 +157,8 @@ def main():
 
     # save the best model
     if train_for_different_noise_levels:
-        with open(saving_path+"classification_best_model_noised.pkl", "wb") as f:
-            pkl.dump(flow_matching_model, f)
+        with open(saving_path+f"classification_best_model_noised_{method}.pkl", "wb") as f:
+            pkl.dump(best_params_dict, f)
     else:
         with open(saving_path+"classification_best_model.pkl", "wb") as f:
             pkl.dump(best_params_dict, f)

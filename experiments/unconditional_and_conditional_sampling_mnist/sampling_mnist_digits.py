@@ -48,12 +48,18 @@ def main(args):
     model = Unet(embedding_dim=32, output_channels=1, dim_mults=(1, 2, 4))
 
     data_rng, time_rng, init_rng, prng_key = split_key(prng_key, num=4)
+    input_shape = (1, 28, 28, 1)
+    x = jax.random.normal(data_rng, input_shape)
+    time = jax.random.uniform(time_rng, shape=(1,))
+
+    print("initializing the model")
+    params_dict_no_trained = model.init(init_rng, x, time)
 
     # function to apply the model
     model_apply = lambda p, x, t: model.apply({"params": p}, x, t)
 
     ## now I can load the parameters
-    params_dict = pkl.load(open(saving_dir + "cfm_mnist_weights_1000epochs.pickle", "rb"))
+    params_dict = pkl.load(open(saving_dir + f"cfm_mnist_weights_{args.method}_best_validation.pickle", "rb"))
     print(params_dict.keys())
 
     params_vec, unflatten = flatten_util.ravel_pytree(params_dict)
@@ -87,10 +93,10 @@ def main(args):
     fig, axs = plt.subplots(8, 8, figsize=(8, 8))
     for i in range(8):
         for j in range(8):
-            axs[i, j].imshow(xt_numpy[i * 8 + j, :, :, 0], cmap="gray")
+            axs[i, j].imshow(xt_numpy[i * 8 + j, :, :, 0].clip(0, 1), cmap="gray")
             axs[i, j].axis("off")
     plt.title("Unconditional samples from the model")
-    plt.savefig(img_saving_dir + "cfm_mnist_samples_model_1000epochs.png")
+    plt.savefig(img_saving_dir + "cfm_mnist_samples.png")
     plt.show()
 
 
@@ -109,11 +115,11 @@ def main(args):
     channels = [8, 16]
     kernel_size = 3
     classifier_model = ConvNet(channels=channels, num_classes=num_classes, act_fn=jax.nn.relu, kernel_size=kernel_size)
-    with open(saving_dir+"classification_best_model_noised.pkl", "rb") as f:
+    with open(saving_dir+f"classification_best_model_noised_{args.method}.pkl", "rb") as f:
         classifier_model_weights = pkl.load(f)
 
     classifier_model_apply = lambda p, x: classifier_model.apply({"params": p}, x)
-    class_conditioning = 1
+    class_conditioning = 5
 
     # I need have to get the gradient of the loss wrt the input
     # loss function definition
@@ -143,12 +149,19 @@ def main(args):
         # printing just to check what the classifier is doing
         print(f"Which digits is the classifier predicting: {jnp.argmax(logits, axis=1)}")
 
-        # I think this is one way to apply reconstruction guidance
-        # is this correct? most likely not
-        # does it work? sometimes it does, sometimes it doesn't
         # Euler step
-        xt = xt + vecot_field_pred * (1 / N)
-        xt = xt - guidance_strength*grads
+        # xt = xt + vecot_field_pred * (1 / N)
+
+        # here I have to compute the guidance
+        weighting_factor=((1-t[0])/t[0])
+        # print(f"Weighting factor shape: {weighting_factor.shape}")
+        weighting_factor = weighting_factor.reshape(-1, *([1] * (len(grads.shape) - 1)))
+        # I have to pad it like the grad I guess
+        # print(f"Weighting factor shape after padding: {weighting_factor.shape}")
+        # since we are computing the gradient of the loss, we have to put the minus 
+        # to get the log-likelihood. You are stupid federico
+        guided_vecot_field_pred = vecot_field_pred - (guidance_strength* weighting_factor*grads)
+        xt = xt + (guided_vecot_field_pred)* (1 / N)
         t = t + 1 / N
 
     xt_numpy = np.array(xt)
@@ -160,9 +173,9 @@ def main(args):
     fig, axs = plt.subplots(int(jnp.sqrt(n_samples)), int(jnp.sqrt(n_samples)), figsize=(8, 8))
     for i in range(int(jnp.sqrt(n_samples))):
         for j in range(int(jnp.sqrt(n_samples))):
-            axs[i, j].imshow(xt_numpy[i * int(jnp.sqrt(n_samples)) + j, :, :, 0], cmap="gray")
+            axs[i, j].imshow(xt_numpy[i * int(jnp.sqrt(n_samples)) + j, :, :, 0].clip(0, 1), cmap="gray")
             axs[i, j].axis("off")
-    plt.savefig(img_saving_dir + "cfm_mnist_samples_reconstruction_guidance_model_1000epochs.png")
+    plt.savefig(img_saving_dir + "cfm_mnist_samples_reconstruction_guidance_model.png")
     plt.show()
 
 
@@ -174,6 +187,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Stochastic interpolants Gaussian-MNIST")
     parser.add_argument("--seed", "-s", type=int, default=1, help="seed")
     parser.add_argument("--n_samples", "-ns", type=int, default=16, help="Number of samples to generate")
+    parser.add_argument("--method", "-mt", type=str, default="CFMv2", help="Type of Flow matching we use")
 
     args = parser.parse_args()
     main(args)
