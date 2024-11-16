@@ -78,38 +78,38 @@ def main(args):
     n_params = len(params_vec)
     print(f"Number of parameters: {n_params}")
 
-    print("Sampling from the model")
-    n_samples = 64
-    key_samples, prng_key = split_key(prng_key, num=2)
-    x0_samples = sample_gaussian(n_samples, dimension=28 * 28, key=key_samples)
-    x0_samples = np.reshape(x0_samples, (n_samples, 28, 28, 1))
-    t = jnp.zeros((n_samples,))
+    # print("Sampling from the model")
+    # n_samples = 64
+    # key_samples, prng_key = split_key(prng_key, num=2)
+    # x0_samples = sample_gaussian(n_samples, dimension=28 * 28, key=key_samples)
+    # x0_samples = np.reshape(x0_samples, (n_samples, 28, 28, 1))
+    # t = jnp.zeros((n_samples,))
 
-    N = 100
-    xt = x0_samples
-    for i in tqdm(range(N), desc="Sampling"):
-        pred = model_apply(params_dict["params"], xt, t)
-        xt = xt + pred * (1 / N)
-        t = t + 1 / N
+    # N = 100
+    # xt = x0_samples
+    # for i in tqdm(range(N), desc="Sampling"):
+    #     pred = model_apply(params_dict["params"], xt, t)
+    #     xt = xt + pred * (1 / N)
+    #     t = t + 1 / N
 
-    ## save results
-    xt_numpy = np.array(xt)
-    # torch.save(xt_numpy, saving_dir + "cfm_mnist_samples.pt")
+    # ## save results
+    # xt_numpy = np.array(xt)
+    # # torch.save(xt_numpy, saving_dir + "cfm_mnist_samples.pt")
 
-    print(xt_numpy.shape)
+    # print(xt_numpy.shape)
 
-    # maybe I should clip the values to be in the 0-1 interval
-    # xt_numpy = np.clip(xt_numpy, 0, 1)
+    # # maybe I should clip the values to be in the 0-1 interval
+    # # xt_numpy = np.clip(xt_numpy, 0, 1)
 
-    # I can plot the samples in a grid
-    fig, axs = plt.subplots(8, 8, figsize=(8, 8))
-    for i in range(8):
-        for j in range(8):
-            axs[i, j].imshow(xt_numpy[i * 8 + j, :, :, 0].clip(0, 1), cmap="gray")
-            axs[i, j].axis("off")
-    plt.title("Unconditional samples from the model")
-    plt.savefig(img_saving_dir + "cfm_mnist_samples.png")
-    plt.show()
+    # # I can plot the samples in a grid
+    # fig, axs = plt.subplots(8, 8, figsize=(8, 8))
+    # for i in range(8):
+    #     for j in range(8):
+    #         axs[i, j].imshow(xt_numpy[i * 8 + j, :, :, 0].clip(0, 1), cmap="gray")
+    #         axs[i, j].axis("off")
+    # plt.title("Unconditional samples from the model")
+    # plt.savefig(img_saving_dir + "cfm_mnist_samples.png")
+    # plt.show()
 
 
     ##################################################
@@ -131,7 +131,7 @@ def main(args):
         classifier_model_weights = pkl.load(f)
 
     classifier_model_apply = lambda p, x: classifier_model.apply({"params": p}, x)
-    class_conditioning = 1
+    class_conditioning = 7
 
     # I need have to get the gradient of the loss wrt the input
     # loss function definition
@@ -144,7 +144,7 @@ def main(args):
     n_samples = args.n_samples
     key_samples, prng_key = split_key(prng_key, num=2)
     x0_samples = sample_gaussian(n_samples, dimension=28 * 28, key=key_samples)
-    x0_samples = np.reshape(x0_samples, (n_samples, 28, 28, 1))
+    x0_samples = jnp.reshape(x0_samples, (n_samples, 28, 28, 1))
     conditioning_label = jnp.ones((n_samples,), dtype=jnp.int32) * class_conditioning
     ## the initial time is 0
     ## but it can be problematic for certain computations
