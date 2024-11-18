@@ -15,11 +15,27 @@ Highly inspired by the following (and way better) repository:
 - Mask example inspired by [https://github.com/helibenhamu/GeMSS_flow_matching/](https://github.com/helibenhamu/GeMSS_flow_matching/)
 
 
-TODO (Priority list):
-- inverse problems that works
+We have several 2D experiments and also an example of training a flow matching model on MNIST. In `experiments/unconditional_and_conditional_sampling_mnist/` you can find two examples to perform conditional generation using classifier guidance and also the code to perform inverse problems (just infilling for now) using an unconditional flow matching model. Note, that for the inverse problems we are not using the weighting factor proposed in the 'Training-free Linear Image Inverses via Flows" but a simple one. 
+
+### Examples
+
+**Conditional generation**
+
+![plots/cfm_mnist_samples_reconstruction_guidance_model_7.png](plots/cfm_mnist_samples_reconstruction_guidance_model_7.png)
+
+![plots/cfm_mnist_samples_reconstruction_guidance_model_5.png](plots/cfm_mnist_samples_reconstruction_guidance_model_5.png)
+
+![plots/cfm_mnist_samples_reconstruction_guidance_model_8.png](plots/cfm_mnist_samples_reconstruction_guidance_model_8.png)
+
+**Inverse problems**
+
+![plots/inverse_problems_tasks.png](plots/inverse_problems_tasks.png)
+
+### TODO (Priority list):
+- imrove classifier we are using for classifier guidance
+- improve inverse problems 
 - likelihood computation
 
 POSSIBLE EXTENSIONS:
-- flow matching for general geometries?
 - D flow?
 - discrete data?

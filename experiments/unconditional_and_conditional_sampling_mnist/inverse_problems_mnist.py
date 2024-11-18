@@ -50,7 +50,7 @@ def main(args):
         
     ## type of inverse problem
     # infilling
-    infilling_exp = True # if False we will have central missing values block
+    infilling_exp = False # if False we will have central missing values block
     yang_song_model = True
 
     # define the model
@@ -88,6 +88,7 @@ def main(args):
     x_test, y_test = test_dataset[100]
 
     plt.imshow(x_test, cmap="gray")
+    plt.savefig(img_saving_dir + f"x_test_infilling_{infilling_exp}.png")
     plt.show()
 
     # now i have to split the keys and sample a mask
@@ -103,12 +104,14 @@ def main(args):
     print(mask)
 
     plt.imshow(mask, cmap="gray")
+    # plt.savefig(img_saving_dir + f"mask.png")
     plt.show()
 
     # now i have to apply the mask to the image
     x_test_masked = (x_test * mask) + (1-mask) * 0.5
 
     plt.imshow(x_test_masked, cmap="gray")
+    plt.savefig(img_saving_dir + f"x_test_masked_infilling_{infilling_exp}.png")
     plt.show()
 
     ###################################
@@ -203,148 +206,9 @@ def main(args):
         t = t + 1 / N
 
     plt.imshow(xt[0].reshape(28, 28), cmap="gray")
+    plt.savefig(img_saving_dir + f"x_generated_infilling_{infilling_exp}.png")
     plt.show()
-    #################################################
-    #
-    #  Inverse problem OLD STUFF THAT WAS NOT WORKING
-    #
-    #################################################
-
-    ## now I can use guidance to do inpainting
-    ## I have to define the guidance loss
-    # n_samples = args.n_samples
-    # key_samples, prng_key = split_key(prng_key, num=2)
-    # x0_samples = sample_gaussian(n_samples, dimension=28 * 28, key=key_samples)
-    # x0_samples = np.reshape(x0_samples, (n_samples, 28, 28, 1))
-
-    # # now I have to multiply the number of masks as n_samples
-    # mask = jnp.reshape(mask, (1, 28, 28, 1))
-    # mask = jnp.tile(mask, (n_samples, 1, 1, 1))
-
-    # # test
-    # # print(mask.shape)
-    # # plt.imshow(mask[10].reshape(28, 28), cmap="gray")
-    # # plt.show()
-
-    # # now I can define the loss
-    # guidance = guided_loss(x0_samples, mask)
-    # # we have to get the gradient wrt the input
-    # guidance_grad_fn = jax.jit(jax.value_and_grad(guidance, argnums=0, has_aux=True))
     
-    # guidance_strength = 1
-    
-    # t = jnp.zeros((n_samples,)) + 1e-3
-    # N = 500
-    # t1 = t.reshape(-1, *([1] * (len(x0_samples.shape) - 1))) 
-
-    # # xt = (1-t) *x0_samples
-    # xt = x0_samples
-    # for i in tqdm(range(N), desc="Sampling"):
-    #     vector_field_pred = model_apply(params_dict["params"], xt, t)
-    #     # here we have to compute the guidance
-    #     # I have to compute the gradient of the loss wrt the input
-
-    #     # I think this is the correct way of applying reconstruction guidance
-    #     # Euler step
-    #     xt = xt + vector_field_pred * (1 / N)
-
-    #     # compute guidance 
-    #     (loss, approx_at_time1), grads = guidance_grad_fn(xt, x_test, t)
-    #     plt.imshow(approx_at_time1[0].reshape(28, 28), cmap="gray")
-    #     plt.show()
-    #     # check norm of grads
-    #     print(jnp.linalg.norm(grads[0,...]))
-    #     # print(jnp.linalg.norm(grads * (1-mask)))
-
-    #     xt = xt - guidance_strength*grads*t
-    #     t = t + 1 / N
-
-    # xt_numpy = np.array(xt)
-    # torch.save(xt_numpy, saving_dir + "cfm_mnist_samples_reconstruction_guidance.pt")
-
-    # print(xt_numpy.shape)
-    # print(xt_numpy[0])
-
-    # plt.imshow(xt_numpy[0], cmap="gray")
-    # plt.show()
-
-     # I can plot the samples in a grid
-    # fig, axs = plt.subplots(int(jnp.sqrt(n_samples)), int(jnp.sqrt(n_samples)), figsize=(8, 8))
-    # for i in range(int(jnp.sqrt(n_samples))):
-    #     for j in range(int(jnp.sqrt(n_samples))):
-    #         axs[i, j].imshow(xt_numpy[i * int(jnp.sqrt(n_samples)) + j, :, :, 0], cmap="gray")
-    #         axs[i, j].axis("off")
-    # plt.savefig(img_saving_dir + "cfm_mnist_samples_reconstruction_guidance.png")
-    # plt.show()
-
-    ###################################
-    #
-    #  Inverse problem following Algorithm 3
-    #  from https://arxiv.org/abs/2310.04432
-    #  work only for the Lipman formulation I guess
-    #
-    ###################################
-
-    # Let's try to follow what they are telling in
-    # Training-free Linear Image Inverses via Flows
-    # https://arxiv.org/abs/2310.04432
-
-    # compute initial xt as alpha_t0 * y + sigma_t0 * eps where eps is N(0,1)
-    # the measurement matrix in this case is the mask
-
-    # n_samples = 1
-    # t = jnp.zeros((n_samples,)) + 1e-2
-    # t = t.reshape(-1, *([1] * (len(x_test.shape) - 1))) 
-    # noise_key, prng_key = split_key(prng_key, num=2)
-    # eps = sample_gaussian(n_samples, dimension=28 * 28, key=noise_key)
-    # eps = np.reshape(eps, (n_samples, 28, 28, 1))
-    # xt = t * (x_test * mask) + (1-t) * eps
-    
-    # print(xt.shape)
-    # plt.imshow(xt[0].reshape(28, 28), cmap="gray")
-    # plt.title("xt at time 0")
-    # plt.show()
-
-    # def get_x1hat(xt, t, dnlratio, dlnsigma):
-    #     vector_field_pred = model_apply(params_dict["params"], xt, t)
-
-    #     # now we have to compute some additional values
-    #     # these are computed using Lipman formulation
-    #     rt2 = ((1-t)**2) / ((1-t)**2 + t**2)
-
-    #     # convert vector field to xhat1 (kind of Tweedie's formula for getting x1|xt but
-    #     # from the vector field perspective)
-    #     x1hat = 1/(t * dlnratio) * (vector_field_pred - dlnsigma * xt)
-
-    #     return x1hat, 
-
-    # ## now we have to start Euler integration
-    # N = 200
-    # for i in tqdm(range(N), desc="Euler integration"):
-    #     # compute constants we need
-    #     dlnratio = 1/(t*(1-t))
-    #     dlnsigma = - 1 / (1-t)
-    #     # we start by predicting the vector field
-    #     vector_field_pred = model_apply(params_dict["params"], xt, t)
-
-    #     # now we have to compute some additional values
-    #     # these are computed using Lipman formulation
-    #     rt2 = ((1-t)**2) / ((1-t)**2 + t**2)
-
-    #     # convert vector field to xhat1 (kind of Tweedie's formula for getting x1|xt but
-    #     # from the vector field perspective)
-    #     dlnratio = 1/(t*(1-t))
-    #     dlnsigma = - 1 / (1-t)
-    #     x1hat = 1/(t * dlnratio) * (vector_field_pred - dlnsigma * xt)
-
-    #     # compute the score of \nabla log p_approx(y|xt)
-    #     score = (x_test * mask - x1hat*mask).T @ (rt2 ) 
-
-
-    # plt.imshow(xt[0].reshape(28, 28), cmap="gray")
-    # plt.title("xt at time 1")
-    # plt.show()
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Stochastic interpolants Gaussian-MNIST")

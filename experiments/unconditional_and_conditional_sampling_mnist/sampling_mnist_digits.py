@@ -131,7 +131,7 @@ def main(args):
         classifier_model_weights = pkl.load(f)
 
     classifier_model_apply = lambda p, x: classifier_model.apply({"params": p}, x)
-    class_conditioning = 7
+    class_conditioning = 5
 
     # I need have to get the gradient of the loss wrt the input
     # loss function definition
@@ -188,7 +188,7 @@ def main(args):
             print(f"min value: {xt_numpy[i * int(jnp.sqrt(n_samples)) + j, :, :, 0].reshape(-1).min()}")
             axs[i, j].imshow(xt_numpy[i * int(jnp.sqrt(n_samples)) + j, :, :, 0].clip(0, 1), cmap="gray")
             axs[i, j].axis("off")
-    plt.savefig(img_saving_dir + "cfm_mnist_samples_reconstruction_guidance_model.png")
+    plt.savefig(img_saving_dir + f"cfm_mnist_samples_reconstruction_guidance_model_{class_conditioning}.png")
     plt.show()
 
 
@@ -197,7 +197,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Stochastic interpolants Gaussian-MNIST")
     parser.add_argument("--seed", "-s", type=int, default=1, help="seed")
-    parser.add_argument("--n_samples", "-ns", type=int, default=16, help="Number of samples to generate")
+    parser.add_argument("--n_samples", "-ns", type=int, default=64, help="Number of samples to generate")
     parser.add_argument("--method", "-mt", type=str, default="CFMv2", help="Type of Flow matching we use")
 
     args = parser.parse_args()
