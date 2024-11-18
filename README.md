@@ -21,15 +21,15 @@ We have several 2D experiments and also an example of training a flow matching m
 
 **Conditional generation**
 
-![readme_images/cfm_mnist_samples_reconstruction_guidance_model_7.png](readme_images/cfm_mnist_samples_reconstruction_guidance_model_7.png)
+![readme_imgs/cfm_mnist_samples_reconstruction_guidance_model_7.png](readme_imgs/cfm_mnist_samples_reconstruction_guidance_model_7.png)
 
-![readme_images/cfm_mnist_samples_reconstruction_guidance_model_5.png](readme_images/cfm_mnist_samples_reconstruction_guidance_model_5.png)
+![readme_imgs/cfm_mnist_samples_reconstruction_guidance_model_5.png](readme_imgs/cfm_mnist_samples_reconstruction_guidance_model_5.png)
 
-![readme_images/cfm_mnist_samples_reconstruction_guidance_model_8.png](readme_images/cfm_mnist_samples_reconstruction_guidance_model_8.png)
+![readme_imgs/cfm_mnist_samples_reconstruction_guidance_model_8.png](readme_imgs/cfm_mnist_samples_reconstruction_guidance_model_8.png)
 
 **Inverse problems**
 
-![readme_images/inverse_problems_tasks.png](readme_images/inverse_problems_tasks.png)
+![readme_imgs/inverse_problems_tasks.png](readme_imgs/inverse_problems_tasks.png)
 
 ### TODO (Priority list):
 - imrove classifier we are using for classifier guidance
